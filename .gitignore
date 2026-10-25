@@ -1,0 +1,16 @@
+# IDE
+.idea/
+.vscode/
+
+# local analysis notes (not published)
+analysis*.md
+
+# generated build output
+winbox64.v3.43p*.exe
+patched*.exe
+
+# local runtime artifacts
+*.dmp
+*.log
+Thumbs.db
+Desktop.ini

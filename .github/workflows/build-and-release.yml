@@ -1,0 +1,52 @@
+name: Build and release patched WinBox
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Patch the binary
+        shell: pwsh
+        run: ./build-patched-v1.ps1
+
+      - name: Verify SHA-256
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash ./winbox64.v3.43p1.exe -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne 'acfc8034b662cdabd4ead6a590194a2274dc41358f1b0cda71db9a752b2c4ea4') {
+            throw "SHA-256 mismatch: $h"
+          }
+          "Verified: $h"
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag   = 'patched-v1'
+          $title = 'WinBox 3.43 patched for RouterOS 7.25'
+          $sha   = $env:GITHUB_SHA
+          $notes = "Built automatically from commit $sha.`n`n" +
+                   "winbox64.v3.43p1.exe is byte-identical to the known-good community-patched build`n" +
+                   "(SHA-256 acfc8034b662cdabd4ead6a590194a2274dc41358f1b0cda71db9a752b2c4ea4).`n`n" +
+                   "Assets: winbox64.v3.43p1.exe (patched client), icons16/24/32.png (icon sets).`n" +
+                   "See the README for details on what each patch does."
+          $assets = @('winbox64.v3.43p1.exe', 'icons16.png', 'icons24.png', 'icons32.png')
+          if (gh release view $tag --json name -q name) {
+            gh release upload $tag @assets --clobber
+            "Updated existing release '$tag'"
+          } else {
+            gh release create $tag @assets --latest --title $title --notes $notes
+            "Created release '$tag'"
+          }
+
