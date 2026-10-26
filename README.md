@@ -109,7 +109,7 @@ Both scripts:
 
 ## CI / Releases
 
-`.github/workflows/build-and-release.yml` runs on **every push to `main`**
+`.github/workflows/build-and-release.yml` runs on **every push to `master`**
 (and manually via `workflow_dispatch`): it builds both patch sets on a Windows
 runner, verifies both SHA-256 hashes, and creates two GitHub Releases on the
 first successful run (existing releases are left untouched — the builds are
