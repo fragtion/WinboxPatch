@@ -21,6 +21,10 @@ versions.
 | `winbox64.v3.43p1.exe` (patch set v1) | `acfc8034b662cdabd4ead6a590194a2274dc41358f1b0cda71db9a752b2c4ea4` |
 | `winbox64.v3.43p2.exe` (patch set v2) | `8b0bc24fcfdbd7eee6109d4593ad3aedecb4fc28786133acc71ed051c61aea20` |
 
+## Screenshot
+
+![WinBox 3.43p2 running against RouterOS 7.25](screen-p2.png)
+
 ## Credits
 
 This project — the reverse-engineering analysis of the WinBox 3.43 binary, the complete
@@ -129,6 +133,7 @@ build-patched-v2.py        deterministic patch script (patch set v2)
 winbox64.v3.43p1.exe       build output, patch set v1 (generated)
 winbox64.v3.43p2.exe       build output, patch set v2 (generated)
 icons16/24/32.png          icon sets (embedded by v2; needed on disk for v1)
+screen-p2.png              screenshot of the patched client
 .github/workflows/         CI: build + release
 ```
 
