@@ -9,6 +9,9 @@ analysis*.md
 winbox64.v3.43p*.exe
 patched*.exe
 
+# locally available reference builds (verification only, not published)
+winbox64.v3.43-patched*.exe
+
 # local runtime artifacts
 *.dmp
 *.log

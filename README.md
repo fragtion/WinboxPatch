@@ -10,14 +10,16 @@ patches** (282 bytes total, all inside `.text`) to the original binary and verif
 result against a known-good SHA-256. The output is **byte-identical** to the community-tested
 patched build.
 
-This repository currently ships **patch set v1**. The patch pipeline is deterministic and
-self-verifying, so if a future RouterOS release breaks WinBox 3.43 again, further patch sets
-can be added the same way as new versions.
+This repository currently ships **patch set v1** and **patch set v2**. The patch
+pipeline is deterministic and self-verifying, so if a future RouterOS release
+breaks WinBox 3.43 again, further patch sets can be added the same way as new
+versions.
 
 | File | SHA-256 |
 |---|---|
 | `winbox64.v3.43.exe` (original, input) | `5b41cf51fd81e8d082687f6b522159cf4aba22e6df8edc486721d4e09507b6e9` |
-| `winbox64.v3.43p1.exe` (output, patch set v1) | `acfc8034b662cdabd4ead6a590194a2274dc41358f1b0cda71db9a752b2c4ea4` |
+| `winbox64.v3.43p1.exe` (patch set v1) | `acfc8034b662cdabd4ead6a590194a2274dc41358f1b0cda71db9a752b2c4ea4` |
+| `winbox64.v3.43p2.exe` (patch set v2) | `8b0bc24fcfdbd7eee6109d4593ad3aedecb4fc28786133acc71ed051c61aea20` |
 
 ## Credits
 
@@ -61,39 +63,72 @@ dead assert/log blocks.
 | 11 | `0x4A7420` + cave `0x483781` | Menu index builder (opening tabs): the same `title ?: name` fallback; the leftover original builder call is nop'd out | none |
 | 12 | `0x4A7119` | QuickSet: third consumer of `title` → reuse the same fallback cave | none |
 
+## Patch set v2 — embedded icons + version stamp
+
+Patch set v2 = patch set v1 plus everything needed to make the patched client a
+single self-contained file (consolidated from the whole icon-integration
+development series into one deterministic build step, `build-patched-v2.py`):
+
+* **New RWX section `.wbox`** (RVA `0x238000`, 0x20000 bytes, appended after
+  `.reloc`) holding a 472-byte startup extractor and the three icon sprites
+  (`icons16/24/32.png`, byte-identical to the RouterOS 7.24.5 webfig files).
+* **Startup icon extraction**: `AddressOfEntryPoint` is redirected to the
+  extractor. Before the original `mainCRTStartup` runs, it unpacks the three
+  PNGs to `%TEMP%\icons16/24/32.png` (plain KERNEL32 calls:
+  `GetTempPathA`/`CreateFileA`/`WriteFile`/`CloseHandle`) and wires the icon
+  loader's built-in fallback structures (`VirtualProtect` on the read-only
+  `.rdata` globals, P-slots/Q-structures in `.wbox`). WinBox then finds its
+  icons regardless of the working directory — no files needed next to the exe.
+* **Version stamp**: window titles and the VERSIONINFO resource
+  (FileVersion/ProductVersion, Details tab) show `3.43.102.38`, so the patched
+  build is easily distinguishable from a stock 3.43.
+* **Authenticode signature is dropped** (unavoidable: the image grows and the
+  certificate no longer matches); the Security directory entry is zeroed and
+  the checksum cleared.
+
+Trade-offs: the file grows from 2,295,976 to 2,418,176 bytes; SmartScreen may
+warn about the unsigned binary. Patch set v1 remains available for anyone who
+prefers the minimal patch and placing the three PNG files next to the exe.
+
 ## Build
 
-Requirements: the original `winbox64.v3.43.exe` in the repo root and PowerShell
-(Windows PowerShell 5.1 or PowerShell 7+).
+Requirements: the original `winbox64.v3.43.exe` in the repo root, PowerShell
+(for patch set v1) and Python 3 (for patch set v2).
 
 ```powershell
-./build-patched-v1.ps1
+./build-patched-v1.ps1     # -> winbox64.v3.43p1.exe  (compatibility patches only)
+python ./build-patched-v2.py  # -> winbox64.v3.43p2.exe  (v1 + icons + version stamp)
 ```
 
-The script:
+Both scripts:
 
-1. verifies the input hash (fails on anything but the pristine original);
-2. asserts the expected original bytes before **every** write (fails safely on a wrong offset);
-3. applies the 12 patches;
-4. verifies the output hash and writes `winbox64.v3.43p1.exe`.
+1. verify the input hash (fails on anything but the pristine original);
+2. assert the expected original bytes before **every** write (fails safely on a wrong offset);
+3. apply their patches;
+4. verify the output hash and write the result.
 
 ## CI / Releases
 
 `.github/workflows/build-and-release.yml` runs on **every push to `main`**
-(and manually via `workflow_dispatch`): it patches the binary on a Windows runner, verifies
-the SHA-256, and publishes/updates a rolling GitHub Release tagged `patched-v1` with the
-following assets:
+(and manually via `workflow_dispatch`): it builds both patch sets on a Windows
+runner, verifies both SHA-256 hashes, and creates two GitHub Releases on the
+first successful run (existing releases are left untouched — the builds are
+byte-deterministic, so there is nothing to update):
 
-* `winbox64.v3.43p1.exe` — the patched client
-* `icons16.png`, `icons24.png`, `icons32.png` — icon sets
+* **`patched-v1`** — `WinBox 3.43p1`: `winbox64.v3.43p1.exe` +
+  `icons16/24/32.png` (the PNGs must sit next to this exe)
+* **`patched-v2`** — `WinBox 3.43p2` (marked *Latest*): `winbox64.v3.43p2.exe`
+  only — self-contained, icons embedded
 
 ## Repository layout
 
 ```
 winbox64.v3.43.exe         original MikroTik binary (patch input)
 build-patched-v1.ps1       deterministic patch script (patch set v1)
-winbox64.v3.43p1.exe       build output (generated)
-icons16/24/32.png          icon sets shipped alongside the release
+build-patched-v2.py        deterministic patch script (patch set v2)
+winbox64.v3.43p1.exe       build output, patch set v1 (generated)
+winbox64.v3.43p2.exe       build output, patch set v2 (generated)
+icons16/24/32.png          icon sets (embedded by v2; needed on disk for v1)
 .github/workflows/         CI: build + release
 ```
 
