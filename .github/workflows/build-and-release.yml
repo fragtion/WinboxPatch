@@ -36,7 +36,7 @@ jobs:
           if ($h1 -ne 'acfc8034b662cdabd4ead6a590194a2274dc41358f1b0cda71db9a752b2c4ea4') {
             throw "patch set v1 SHA-256 mismatch: $h1"
           }
-          if ($h2 -ne '8b0bc24fcfdbd7eee6109d4593ad3aedecb4fc28786133acc71ed051c61aea20') {
+          if ($h2 -ne '94a3f95689c76bf6ede87f4cd0bb6acd5b44d15fc2898b2a9c399aec219f49d8') {
             throw "patch set v2 SHA-256 mismatch: $h2"
           }
           "Verified v1: $h1"
@@ -75,8 +75,11 @@ jobs:
           $sha   = $env:GITHUB_SHA
           $notes = "Patch set v2 - v1 + embedded icons + version stamp 3.43.102.38.`n" +
                    "Built automatically from commit $sha.`n`n" +
-                   "winbox64.v3.43p2.exe is byte-identical to the known-good community-patched build`n" +
-                   "(SHA-256 8b0bc24fcfdbd7eee6109d4593ad3aedecb4fc28786133acc71ed051c61aea20).`n`n" +
+                   "winbox64.v3.43p2.exe is byte-identical to the known-good build`n" +
+                   "(SHA-256 94a3f95689c76bf6ede87f4cd0bb6acd5b44d15fc2898b2a9c399aec219f49d8).`n" +
+                   "Includes the Win64 ABI fix for the .wbox startup stub: the earlier build`n" +
+                   "ran on Windows 7 x64 but crashed on Windows 10/11 x64 (0xC0000005 under`n" +
+                   "CreateFileA) because of a misaligned stack.`n`n" +
                    "Self-contained: icons are embedded and unpacked to %TEMP% at startup -`n" +
                    "no files needed next to the exe.`n" +
                    "See the README for details on what each patch does."

@@ -7,8 +7,8 @@ project instead patches the original `winbox64.v3.43.exe` so it keeps working wi
 
 The build is fully deterministic: a single PowerShell script applies **12 surgical byte
 patches** (282 bytes total, all inside `.text`) to the original binary and verifies the
-result against a known-good SHA-256. The output is **byte-identical** to the community-tested
-patched build.
+result against a known-good SHA-256. Each patch set's output is **byte-identical** to its
+known-good build.
 
 This repository currently ships **patch set v1** and **patch set v2**. The patch
 pipeline is deterministic and self-verifying, so if a future RouterOS release
@@ -19,7 +19,7 @@ versions.
 |---|---|
 | `winbox64.v3.43.exe` (original, input) | `5b41cf51fd81e8d082687f6b522159cf4aba22e6df8edc486721d4e09507b6e9` |
 | `winbox64.v3.43p1.exe` (patch set v1) | `acfc8034b662cdabd4ead6a590194a2274dc41358f1b0cda71db9a752b2c4ea4` |
-| `winbox64.v3.43p2.exe` (patch set v2) | `8b0bc24fcfdbd7eee6109d4593ad3aedecb4fc28786133acc71ed051c61aea20` |
+| `winbox64.v3.43p2.exe` (patch set v2) | `94a3f95689c76bf6ede87f4cd0bb6acd5b44d15fc2898b2a9c399aec219f49d8` |
 
 ## Screenshot
 
@@ -83,6 +83,13 @@ development series into one deterministic build step, `build-patched-v2.py`):
   loader's built-in fallback structures (`VirtualProtect` on the read-only
   `.rdata` globals, P-slots/Q-structures in `.wbox`). WinBox then finds its
   icons regardless of the working directory — no files needed next to the exe.
+* **Win64 ABI fix in the extractor**: the stub builds its frame with
+  `sub rsp,0x340` / `add rsp,0x340`. The earlier build used `0x338`, which left
+  `RSP == 8 (mod 16)` at the KERNEL32 calls — tolerated by Windows 7 x64, but on
+  Windows 10/11 x64 the first `CreateFileA` crashed with `0xC0000005` inside
+  `ntdll` (`CreateFileA` → `GetDriveTypeW`) before WinBox ever showed a window.
+  With the aligned frame the patched client starts normally on Windows 11 x64
+  and extracts the three icons as before.
 * **Version stamp**: window titles and the VERSIONINFO resource
   (FileVersion/ProductVersion, Details tab) show `3.43.102.38`, so the patched
   build is easily distinguishable from a stock 3.43.

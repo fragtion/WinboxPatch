@@ -18,8 +18,9 @@ development series into a single step):
   * window titles and the VERSIONINFO resource are stamped 3.43.102.38
   * the Authenticode signature is dropped (unavoidable: the image grows)
 
-Output: winbox64.v3.43p2.exe, byte-identical to the known-good community
-patch set v2 build.
+Output: winbox64.v3.43p2.exe, byte-identical to the known-good patch set v2
+build. The startup stub builds its frame with `sub rsp,0x340` (not 0x338) so
+the KERNEL32 calls get a 16-byte aligned stack - see build_p1_head().
 """
 import hashlib
 import os
@@ -32,7 +33,7 @@ OUT = os.path.join(HERE, "winbox64.v3.43p2.exe")
 
 ORIG_SHA = "5b41cf51fd81e8d082687f6b522159cf4aba22e6df8edc486721d4e09507b6e9"
 V17_SHA = "acfc8034b662cdabd4ead6a590194a2274dc41358f1b0cda71db9a752b2c4ea4"
-TARGET_SHA = "8b0bc24fcfdbd7eee6109d4593ad3aedecb4fc28786133acc71ed051c61aea20"
+TARGET_SHA = "94a3f95689c76bf6ede87f4cd0bb6acd5b44d15fc2898b2a9c399aec219f49d8"
 TARGET_SIZE = 2418176  # 0x24E600
 
 
@@ -122,7 +123,11 @@ def build_p1_head():
 
     mark(0)                                        # extractor entered
     emit(0x53, 0x56, 0x57, 0x41, 0x54, 0x41, 0x55, 0x41, 0x56, 0x41, 0x57)  # push rbx,rsi,rdi,r12..r15
-    emit(0x48, 0x81, 0xEC, 0x38, 0x03, 0x00, 0x00)  # sub rsp,0x338
+    # sub rsp,0x340: 7 pushes + 0x340 keeps RSP 16-byte aligned at the API
+    # calls below / at the `call` instructions. With 0x338 the stub called
+    # KERNEL32 with RSP == 8 (mod 16), which Windows 7 tolerated but Windows
+    # 10/11 does not (0xC0000005 inside ntdll during CreateFileA).
+    emit(0x48, 0x81, 0xEC, 0x40, 0x03, 0x00, 0x00)  # sub rsp,0x340
     emit(0xB9, 0x04, 0x01, 0x00, 0x00)              # mov ecx,0x104
     emit(0x48, 0x89, 0xE2)                          # mov rdx,rsp
     call_abs(GTPA)                                  # call [GetTempPathA]
@@ -219,7 +224,7 @@ def build_p1_tail(o, jle, js, L_file, lea_tbl):
     # mark(56) - mov byte [MK+56],1
     emit((0xC6, 0x04, 0x25), struct.pack("<I", 0x638838), (0x01,))  # mov byte [MK+56],1
     X_out = len(o)
-    emit((0x48, 0x81, 0xC4, 0x38, 0x03, 0x00, 0x00))  # add rsp,0x338
+    emit((0x48, 0x81, 0xC4, 0x40, 0x03, 0x00, 0x00))  # add rsp,0x340 (matches sub)
     emit((0x41, 0x5F, 0x41, 0x5E, 0x41, 0x5D, 0x41, 0x5C))  # pop r15,r14,r13,r12
     emit((0x5F, 0x5E, 0x5B))                        # pop rdi,rsi,rbx
     # mark(64) - mov byte [MK+64],1
